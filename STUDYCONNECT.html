@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>StudyApp – Russell Group London</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--ink:#16202b;--muted:#5d6975;--line:#dcd9d0;--brand:#0f6e66;--brand-ink:#fff;--note:#fde68a;--danger:#b42318}
+@media (prefers-color-scheme:dark){:root{--bg:#12171c;--card:#1b222a;--ink:#eef1f3;--muted:#9aa6b2;--line:#2c3640;--brand:#34b3a6;--brand-ink:#08201d;--note:#5b4b12;--danger:#ff8a80}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 "Bricolage Grotesque",system-ui,sans-serif;padding-bottom:84px}
+main{max-width:680px;margin:0 auto;padding:16px}
+h1{font-size:1.9rem;line-height:1.1;margin:.2em 0 .3em;font-weight:800}
+h2{font-size:1.25rem;margin:1.2em 0 .5em}
+p{margin:.3em 0}
+.muted{color:var(--muted);font-size:.9rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+label{display:block;font-weight:600;margin:12px 0 4px}
+input,select,textarea{width:100%;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:9px 14px}
+button.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);font-weight:600}
+button.link{border:0;background:none;color:var(--danger);padding:4px;font-size:.85rem}
+button:disabled{opacity:.55;cursor:default}
+:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.chip{border-radius:99px;padding:5px 12px;font-size:.85rem}
+.chip.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.tag{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 8px;font-size:.78rem;margin:2px 4px 2px 0}
+.note{background:var(--note);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:.9rem}
+.fun{background:var(--note);border-radius:8px;padding:6px 10px;margin-top:8px;font-size:.9rem}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
+nav button{flex:1;max-width:130px;border:0;background:none;font-size:.82rem;padding:8px 2px;color:var(--muted)}
+nav button.on{color:var(--brand);font-weight:800}
+.map{width:100%;height:auto;background:var(--card);border:1px solid var(--line);border-radius:14px}
+.dot{cursor:pointer;fill:var(--muted)}.dot.hit{fill:var(--brand)}.dot.sel{fill:var(--danger)}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;width:90px;display:inline-block;vertical-align:middle}
+.bar i{display:block;height:100%;background:var(--brand)}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<nav id="nav" hidden></nav>
+
+<script>
+"use strict";
+// ---------- Data (sample data for the hackathon demo) ----------
+const UNIS = {UCL:"ucl.ac.uk","King's College London":"kcl.ac.uk","Imperial College London":"imperial.ac.uk",LSE:"lse.ac.uk","Queen Mary University of London":"qmul.ac.uk"};
+const SHORT = {UCL:"UCL","King's College London":"KCL","Imperial College London":"Imperial",LSE:"LSE","Queen Mary University of London":"QMUL"};
+const FILTERS = [["free","Free"],["quiet","Quiet"],["late","Open late"],["wifi","Wifi and plugs"],["station","Near a station"],["group","Group-friendly"],["silent","Silent"],["rooms","Bookable rooms"]];
+// x,y = rough position on the schematic map (0-100)
+const SPACES = [
+ {id:1,name:"Queen Mary Library, Mile End",area:"Mile End",x:78,y:40,crowd:70,hours:"Open late",f:["free","quiet","late","wifi","station","silent","rooms"]},
+ {id:2,name:"UCL Main Library",area:"Bloomsbury",x:38,y:38,crowd:85,hours:"Open late",f:["free","quiet","late","wifi","station","silent","rooms"]},
+ {id:3,name:"British Library",area:"King's Cross",x:42,y:30,crowd:75,hours:"Until 8pm",f:["free","quiet","wifi","station","silent"]},
+ {id:4,name:"LSE Library",area:"Holborn",x:46,y:50,crowd:80,hours:"Open late",f:["free","quiet","late","wifi","station","silent","rooms"]},
+ {id:5,name:"King's Maughan Library",area:"Chancery Lane",x:48,y:54,crowd:65,hours:"Open late",f:["free","quiet","late","wifi","station","silent","rooms"]},
+ {id:6,name:"Imperial Central Library",area:"South Kensington",x:14,y:70,crowd:60,hours:"Open late",f:["free","quiet","late","wifi","station","silent"]},
+ {id:7,name:"Wellcome Collection reading room",area:"Euston",x:36,y:33,crowd:45,hours:"Until 6pm",f:["free","quiet","wifi","station"]},
+ {id:8,name:"Barbican Library",area:"Barbican",x:55,y:46,crowd:40,hours:"Until 7pm",f:["free","quiet","wifi","station","group"]},
+ {id:9,name:"Idea Store Whitechapel",area:"Whitechapel",x:68,y:52,crowd:55,hours:"Until 8pm",f:["free","wifi","station","group","rooms"]},
+ {id:10,name:"Local cafe (laptop-friendly)",area:"Mile End",x:80,y:46,crowd:50,hours:"Until 6pm",f:["wifi","group","station"]}
+];
+const PEOPLE = [
+ {id:"p1",name:"Amina",course:"Mathematics",uni:"UCL",year:2,fun:"I can solve a Rubik's cube in under a minute.",contact:"WhatsApp",value:"+44 7000 000001",looking:"Study partner"},
+ {id:"p2",name:"Daniel",course:"Mathematics and Statistics",uni:"King's College London",year:2,fun:"I've visited 14 countries on a student budget.",contact:"Instagram",value:"@daniel.studies",looking:"Accountability"},
+ {id:"p3",name:"Priya",course:"Mathematics and Statistics",uni:"Imperial College London",year:2,fun:"I bake banana bread before every exam.",contact:"Email",value:"priya@imperial.ac.uk",looking:"A chat"},
+ {id:"p4",name:"Tom",course:"Economics",uni:"LSE",year:1,fun:"I'm learning to play the oud.",contact:"WhatsApp",value:"+44 7000 000004",looking:"Study partner"},
+ {id:"p5",name:"Hodan",course:"Computer Science",uni:"Queen Mary University of London",year:3,fun:"I commute 90 minutes each way and finish a podcast a day.",contact:"Instagram",value:"@hodan.codes",looking:"Accountability"},
+ {id:"p6",name:"Leo",course:"Mathematics",uni:"Queen Mary University of London",year:2,fun:"I used to be a youth football referee.",contact:"Email",value:"leo@qmul.ac.uk",looking:"Study partner"}
+];
+let groups = [
+ {id:1,title:"Year 2 Linear Algebra revision",module:"Linear Algebra",type:"Exam prep",uni:"Cross-uni",when:"Wednesdays 4pm",place:"Queen Mary Library, Mile End",members:4,joined:false},
+ {id:2,title:"Silent study, early birds",module:"Any",type:"Silent study",uni:"Cross-uni",when:"Weekdays 8am",place:"UCL Main Library",members:3,joined:false},
+ {id:3,title:"Stats accountability check-in",module:"Probability",type:"Accountability",uni:"King's College London",when:"Mondays 6pm",place:"King's Maughan Library",members:5,joined:false},
+ {id:4,title:"Sunday weekly meetup",module:"Any",type:"Weekly meetup",uni:"Cross-uni",when:"Sundays 1pm",place:"Idea Store Whitechapel",members:6,joined:false},
+ {id:5,title:"Econometrics exam prep",module:"Econometrics",type:"Exam prep",uni:"LSE",when:"Thursdays 5pm",place:"LSE Library",members:2,joined:false}
+];
+let sessions = [
+ {id:1,who:"Amina (UCL)",place:"UCL Main Library",time:"2pm–5pm",note:"Working on problem sheets, happy to share notes.",joined:false},
+ {id:2,who:"Hodan (QMUL)",place:"Queen Mary Library, Mile End",time:"1pm–4pm",note:"Silent work, quick chat at the break.",joined:false}
+];
+
+// ---------- State ----------
+const S = {screen:"signup",step:"email",email:"",code:"",user:null,filters:new Set(),selSpace:null,groupType:"All",
+  requests:{},blocked:new Set(),reports:new Set(),msg:""};
+const $ = s => document.querySelector(s);
+const esc = t => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uniFromEmail = e => {
+  const m = /^[^\s@]+@([^\s@]+\.[^\s@]+)$/i.exec(e.trim()); if(!m) return null;
+  const d = m[1].toLowerCase();
+  return Object.keys(UNIS).find(u => d === UNIS[u] || d.endsWith("." + UNIS[u])) || null;
+};
+
+// ---------- Views ----------
+function signup(){
+  if(S.step==="email") return `<h1>Find a place to study.<br>Find people to study with.</h1>
+   <p class="muted">For students at UCL, King's, Imperial, LSE and Queen Mary.</p>
+   <div class="card"><label for="em">University email</label>
+   <input id="em" type="email" inputmode="email" placeholder="you@qmul.ac.uk" value="${esc(S.email)}">
+   ${S.msg?`<p style="color:var(--danger)">${esc(S.msg)}</p>`:""}
+   <p class="row" style="margin-top:12px"><button class="primary" data-a="sendcode">Send my code</button></p></div>`;
+  return `<h1>Check your inbox</h1>
+   <div class="note">Demo mode: no email is sent. Your code is <b>${S.code}</b>. A real version sends it to ${esc(S.email)}.</div>
+   <div class="card"><label for="cd">6-digit code</label><input id="cd" inputmode="numeric" maxlength="6">
+   ${S.msg?`<p style="color:var(--danger)">${esc(S.msg)}</p>`:""}
+   <p class="row" style="margin-top:12px"><button class="primary" data-a="verify">Verify</button><button data-a="back">Change email</button></p></div>`;
+}
+function profile(){
+  const u = S.user, opt = (arr,v) => arr.map(x=>`<option ${x===v?"selected":""}>${esc(x)}</option>`).join("");
+  return `<h1>Your profile</h1><p class="muted">Contact details stay hidden until you and another student both agree.</p>
+  <div class="card">
+   <label for="pn">Name</label><input id="pn" value="${esc(u.name||"")}">
+   <label for="pc">Course</label><input id="pc" value="${esc(u.course||"")}" placeholder="e.g. Mathematics and Statistics">
+   <label for="pu">University</label><select id="pu">${opt(Object.keys(UNIS),u.uni)}</select>
+   <label for="py">Year</label><select id="py">${opt(["1","2","3","4"],String(u.year))}</select>
+   <label for="pg">Gender (optional)</label><select id="pg">${opt(["Prefer not to say","Woman","Man","Non-binary","Self-describe"],u.gender)}</select>
+   <label for="pf">Fun fact</label><input id="pf" value="${esc(u.fun||"")}" placeholder="A conversation starter">
+   <label for="pm">Best way to contact you</label><select id="pm">${opt(["WhatsApp","Instagram","Email"],u.contact)}</select>
+   <label for="pv">Your WhatsApp / Instagram / email</label><input id="pv" value="${esc(u.value||"")}">
+   <label for="pl">I'm looking for</label><select id="pl">${opt(["Study partner","Accountability","A chat"],u.looking)}</select>
+   <p style="margin-top:14px"><button class="primary" data-a="saveprofile">Save profile</button></p>${S.msg?`<p class="muted">${esc(S.msg)}</p>`:""}
+  </div>`;
+}
+function spaces(){
+  const list = SPACES.filter(s => [...S.filters].every(f => s.f.includes(f)));
+  const dots = SPACES.map(s=>`<circle class="dot ${list.includes(s)?"hit":""} ${S.selSpace===s.id?"sel":""}" data-a="selspace" data-id="${s.id}" cx="${s.x*3}" cy="${s.y*2}" r="${S.selSpace===s.id?9:7}"><title>${esc(s.name)}</title></circle>`).join("");
+  const sel = SPACES.find(s=>s.id===S.selSpace);
+  return `<h1>Study spaces</h1>
+  <div class="row">${FILTERS.map(([k,l])=>`<button class="chip ${S.filters.has(k)?"on":""}" aria-pressed="${S.filters.has(k)}" data-a="filter" data-k="${k}">${l}</button>`).join("")}</div>
+  <svg class="map" viewBox="0 0 300 200" role="img" aria-label="Schematic map of study spaces"><path d="M0 120 Q60 100 110 130 T220 110 T300 130 V150 Q230 135 170 150 T50 140 T0 150Z" fill="var(--line)" opacity=".6"/>${dots}</svg>
+  <p class="muted">Schematic map (not to scale). Green dots match your filters. A real build would use a live map.</p>
+  ${sel?`<div class="note"><b>${esc(sel.name)}</b>, ${esc(sel.area)}</div>`:""}
+  <h2>${list.length} place${list.length===1?"":"s"}</h2>
+  ${list.map(s=>`<div class="card"><div class="row between"><b>${esc(s.name)}</b><span class="muted">${esc(s.area)}</span></div>
+   <p class="muted">${esc(s.hours)} · Crowd level <span class="bar" aria-label="${s.crowd}% busy"><i style="width:${s.crowd}%"></i></span> ${s.crowd}%</p>
+   <div>${s.f.map(f=>`<span class="tag">${esc(FILTERS.find(x=>x[0]===f)[1])}</span>`).join("")}</div></div>`).join("")||`<p class="muted">Nothing matches all filters. Try removing one.</p>`}`;
+}
+function groupsView(){
+  const types = ["All","Silent study","Exam prep","Accountability","Weekly meetup"];
+  const list = groups.filter(g=>S.groupType==="All"||g.type===S.groupType);
+  return `<h1>Study groups</h1>
+  <div class="row">${types.map(t=>`<button class="chip ${S.groupType===t?"on":""}" data-a="gtype" data-k="${esc(t)}">${t}</button>`).join("")}</div>
+  ${list.map(g=>{const full=g.members>=6&&!g.joined;return `<div class="card"><div class="row between"><b>${esc(g.title)}</b><span class="tag">${esc(g.type)}</span></div>
+   <p class="muted">${esc(g.uni)} · ${esc(g.module)} · ${esc(g.when)}</p><p class="muted">${esc(g.place)}</p>
+   <div class="row between" style="margin-top:8px"><span>${g.members}/6 students</span>
+   <button class="${g.joined?"":"primary"}" data-a="joingroup" data-id="${g.id}" ${full?"disabled":""}>${g.joined?"Leave group":full?"Group full":"Join"}</button></div></div>`}).join("")}
+  <h2>Create a group</h2><div class="card">
+   <label for="gt">Title</label><input id="gt" placeholder="e.g. Year 2 Probability revision">
+   <label for="gm">Module</label><input id="gm" placeholder="e.g. Probability">
+   <label for="gy">Type</label><select id="gy">${types.slice(1).map(t=>`<option>${t}</option>`).join("")}</select>
+   <label for="gw">When</label><input id="gw" placeholder="e.g. Tuesdays 3pm">
+   <label for="gp">Where</label><select id="gp">${SPACES.map(s=>`<option>${esc(s.name)}</option>`).join("")}</select>
+   <p style="margin-top:12px"><button class="primary" data-a="newgroup">Create group</button></p></div>`;
+}
+function people(){
+  const u = S.user;
+  const scored = PEOPLE.filter(p=>!S.blocked.has(p.id)).map(p=>({p,s:(p.course.toLowerCase()===u.course.toLowerCase()?3:0)+(String(p.year)===String(u.year)?1:0)+(p.looking===u.looking?1:0)}))
+    .sort((a,b)=>b.s-a.s);
+  return `<h1>Find your people</h1><p class="muted">Sorted by course, year and what you're looking for. All students are verified by uni email.</p>
+  ${scored.map(({p})=>{const st=S.requests[p.id];return `<div class="card"><div class="row between"><b>${esc(p.name)}</b><span class="muted">${esc(SHORT[p.uni])}</span></div>
+   <p>${esc(p.course)}, year ${p.year}</p><p class="muted">Looking for: ${esc(p.looking)}</p>
+   <div class="fun">${esc(p.fun)}</div>
+   ${st==="connected"?`<p style="margin-top:8px"><b>${esc(p.contact)}:</b> ${esc(p.value)}</p>`:""}
+   <div class="row between" style="margin-top:8px">
+   ${st==="connected"?`<span class="muted">You're connected. Meet in a public study space.</span>`:st==="sent"?`<button disabled>Request sent</button>`:`<button class="primary" data-a="connect" data-id="${p.id}">Say hi</button>`}
+   <span><button class="link" data-a="report" data-id="${p.id}">${S.reports.has(p.id)?"Reported":"Report"}</button><button class="link" data-a="block" data-id="${p.id}">Block</button></span></div></div>`}).join("")}`;
+}
+function sessionsView(){
+  return `<h1>Sessions</h1><p class="muted">Post when and where you're studying. Others can drop in.</p>
+  ${sessions.map(x=>`<div class="card"><div class="row between"><b>${esc(x.who)}</b><span>${esc(x.time)}</span></div>
+   <p>${esc(x.place)}</p><p class="muted">${esc(x.note)}</p>
+   <p style="margin-top:8px"><button class="${x.joined?"":"primary"}" data-a="dropin" data-id="${x.id}">${x.joined?"Drop-in booked. Undo":"I'll drop in"}</button></p></div>`).join("")}
+  <h2>Post a session</h2><div class="card">
+   <label for="sp">Where</label><select id="sp">${SPACES.map(s=>`<option>${esc(s.name)}</option>`).join("")}</select>
+   <label for="st">Time</label><input id="st" placeholder="e.g. 2pm–5pm">
+   <label for="sn">Note</label><input id="sn" placeholder="What are you working on?">
+   <p style="margin-top:12px"><button class="primary" data-a="newsession">Post session</button></p></div>`;
+}
+
+const SCREENS = {profile,spaces,groups:groupsView,people,sessions:sessionsView};
+const LABELS = {spaces:"Spaces",groups:"Groups",people:"People",sessions:"Sessions",profile:"Profile"};
+
+function render(){
+  const app = $("#app"), nav = $("#nav");
+  if(!S.user){ nav.hidden = true; app.innerHTML = signup(); return; }
+  nav.hidden = false;
+  nav.innerHTML = Object.keys(LABELS).map(k=>`<button class="${S.screen===k?"on":""}" data-a="go" data-k="${k}" ${S.screen===k?'aria-current="page"':""}>${LABELS[k]}</button>`).join("");
+  app.innerHTML = SCREENS[S.screen]();
+}
+const val = id => ($("#"+id)||{value:""}).value.trim();
+
+// ---------- Actions ----------
+const actions = {
+  sendcode(){ const e = val("em"); S.email = e; const u = uniFromEmail(e);
+    if(!u){ S.msg = "Use a university email from UCL, King's, Imperial, LSE or Queen Mary."; return; }
+    S.code = String(Math.floor(100000+Math.random()*900000)); S.step = "code"; S.msg = ""; S.uni = u; },
+  back(){ S.step = "email"; S.msg = ""; },
+  verify(){ if(val("cd")!==S.code){ S.msg = "That code doesn't match. Check it and try again."; return; }
+    S.user = {name:"",course:"",uni:S.uni,year:1,gender:"Prefer not to say",fun:"",contact:"WhatsApp",value:"",looking:"Study partner"};
+    S.screen = "profile"; S.msg = "Add your name and course to get better matches."; },
+  saveprofile(){ if(!val("pn")||!val("pc")){ S.msg = "Add your name and course first."; return; }
+    Object.assign(S.user,{name:val("pn"),course:val("pc"),uni:val("pu"),year:val("py"),gender:val("pg"),fun:val("pf"),contact:val("pm"),value:val("pv"),looking:val("pl")});
+    S.msg = ""; S.screen = "spaces"; },
+  go(el){ S.screen = el.dataset.k; S.msg = ""; },
+  filter(el){ const k = el.dataset.k; S.filters.has(k) ? S.filters.delete(k) : S.filters.add(k); },
+  selspace(el){ S.selSpace = +el.dataset.id; },
+  gtype(el){ S.groupType = el.dataset.k; },
+  joingroup(el){ const g = groups.find(g=>g.id===+el.dataset.id); g.joined = !g.joined; g.members += g.joined ? 1 : -1; },
+  newgroup(){ if(!val("gt")) return; groups.unshift({id:Date.now(),title:val("gt"),module:val("gm")||"Any",type:val("gy"),uni:S.user.uni===""?"Cross-uni":SHORT[S.user.uni],when:val("gw")||"To be agreed",place:val("gp"),members:1,joined:true}); S.groupType="All"; },
+  connect(el){ const id = el.dataset.id; S.requests[id] = "sent";
+    // Demo only: the other student accepts after 1.5 seconds. A real app needs a backend for this.
+    setTimeout(()=>{ if(S.requests[id]==="sent"){ S.requests[id]="connected"; render(); } },1500); },
+  block(el){ S.blocked.add(el.dataset.id); },
+  report(el){ S.reports.add(el.dataset.id); },
+  dropin(el){ const x = sessions.find(x=>x.id===+el.dataset.id); x.joined = !x.joined; },
+  newsession(){ if(!val("st")) return; sessions.unshift({id:Date.now(),who:`${S.user.name||"You"} (${SHORT[S.user.uni]})`,place:val("sp"),time:val("st"),note:val("sn")||"Come and study with me.",joined:false}); }
+};
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-a]"); if(!el || el.disabled) return;
+  const y = window.scrollY; actions[el.dataset.a](el); render(); window.scrollTo(0, ["go","saveprofile","verify"].includes(el.dataset.a)?0:y);
+});
+render();
+</script>
+</body>
+</html>
