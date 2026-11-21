@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Study Common"
+description = "A hackathon demo helping students across London’s five Russell Group universities discover study spaces, join small groups and find study partners."
+version = "1.0.0"
+id = "artifacts/study-common"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21916
+
+[services.development]
+run = "pnpm --filter @workspace/study-common run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/study-common", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/study-common/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21916"
+BASE_PATH = "/"
